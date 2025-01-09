@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Gallery Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="header">
+    <h1>Image Gallery Viewer</h1>
+    <button id="toggleCompare" class="compare-button">Enable Comparison Mode</button>
+    <button id="toggleChanged" class="compare-button hidden">Only Show Changes</button>
+    <div class="type-toggle">
+        <button id="toggleSVG" class="type-button active">SVG</button>
+        <button id="toggleWebP" class="type-button">WebP</button>
+        <button id="toggleAll" class="type-button">All</button>
+    </div>
+</div>
+
+<div class="file-inputs">
+    <div class="file-input primary" id="dropZone1">
+        <label class="upload-button" for="fileInput1">
+            Choose JS File
+        </label>
+        <input type="file" id="fileInput1" accept=".js">
+        <div class="status" id="status1"></div>
+    </div>
+
+    <div class="file-input secondary hidden" id="dropZone2">
+        <label class="upload-button" for="fileInput2">
+            Choose Newer JS File
+        </label>
+        <input type="file" id="fileInput2" accept=".js">
+        <div class="status" id="status2"></div>
+    </div>
+</div>
+
+<div class="diff-summary hidden" id="diffSummary"></div>
+
+<div class="galleries">
+    <div id="gallery1" class="gallery primary">
+        <div class="gallery-header">
+            <h2>Gallery</h2>
+            <span id="count1"></span>
+        </div>
+        <div class="gallery-sections">
+            <div class="section svg-section">
+                <h3>SVG Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section webp-section">
+                <h3>WebP Files</h3>
+                <div class="image-grid"></div>
+            </div>
+        </div>
+    </div>
+    <div id="gallery2" class="gallery secondary hidden">
+        <div class="gallery-header">
+            <h2>New Gallery</h2>
+            <span id="count2"></span>
+        </div>
+        <div class="gallery-sections">
+            <div class="section svg-section">
+                <h3>SVG Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section webp-section">
+                <h3>WebP Files</h3>
+                <div class="image-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
