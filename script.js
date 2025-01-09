@@ -1,11 +1,17 @@
 let file1SVGs = new Set();
 let file2SVGs = new Set();
+let file1WebPs = new Set();
+let file2WebPs = new Set();
 let comparisonMode = false;
 let showChangedOnly = false;
+let currentViewType = 'all'; // Can be 'all', 'svg', or 'webp'
 
 // Initialize UI elements
 const toggleButton = document.getElementById('toggleCompare');
 const toggleChangedButton = document.getElementById('toggleChanged');
+const toggleSVG = document.getElementById('toggleSVG');
+const toggleWebP = document.getElementById('toggleWebP');
+const toggleAll = document.getElementById('toggleAll');
 const fileInputsContainer = document.querySelector('.file-inputs');
 const galleriesContainer = document.querySelector('.galleries');
 const secondaryFileInput = document.getElementById('dropZone2');
@@ -30,13 +36,51 @@ toggleChangedButton.addEventListener('click', () => {
     toggleChangedButton.textContent = showChangedOnly ? 'Show All' : 'Only Show Changes';
 
     // Refresh galleries to apply the filter
-    if (file1SVGs.size > 0) {
-        createGallery(file1SVGs, 'gallery1', file2SVGs);
+    if (file1SVGs.size > 0 || file1WebPs.size > 0) {
+        createGallery('gallery1', file1SVGs, file1WebPs, file2SVGs, file2WebPs);
     }
-    if (file2SVGs.size > 0) {
-        createGallery(file2SVGs, 'gallery2', file1SVGs);
+    if (file2SVGs.size > 0 || file2WebPs.size > 0) {
+        createGallery('gallery2', file2SVGs, file2WebPs, file1SVGs, file1WebPs);
     }
 });
+
+// Type toggle handlers
+toggleSVG.addEventListener('click', () => setViewType('svg'));
+toggleWebP.addEventListener('click', () => setViewType('webp'));
+toggleAll.addEventListener('click', () => setViewType('all'));
+
+function setViewType(type) {
+    currentViewType = type;
+
+    // Update button states
+    [toggleSVG, toggleWebP, toggleAll].forEach(button => {
+        button.classList.remove('active');
+    });
+
+    switch(type) {
+        case 'svg':
+            toggleSVG.classList.add('active');
+            break;
+        case 'webp':
+            toggleWebP.classList.add('active');
+            break;
+        case 'all':
+            toggleAll.classList.add('active');
+            break;
+    }
+
+    // Update visibility of sections
+    const svgSections = document.querySelectorAll('.svg-section');
+    const webpSections = document.querySelectorAll('.webp-section');
+
+    svgSections.forEach(section => {
+        section.classList.toggle('hidden-type', type === 'webp');
+    });
+
+    webpSections.forEach(section => {
+        section.classList.toggle('hidden-type', type === 'svg');
+    });
+}
 
 function setupDropZone(dropZoneId, fileInputId, statusId, processFile) {
     const dropZone = document.getElementById(dropZoneId);
@@ -78,12 +122,16 @@ function unhighlight(element) {
     element.classList.remove('drop-zone');
 }
 
-function extractSVGs(content) {
+function extractImages(content) {
     const svgRegex = /['"](.*?\.svg)['"]/g;
-    const matches = Array.from(content.matchAll(svgRegex));
-    const svgs = new Set();
+    const webpRegex = /['"](.*?\.webp)['"]/g;
+    const svgMatches = Array.from(content.matchAll(svgRegex));
+    const webpMatches = Array.from(content.matchAll(webpRegex));
 
-    matches.forEach(match => {
+    const svgs = new Set();
+    const webps = new Set();
+
+    svgMatches.forEach(match => {
         const fullPath = match[1];
         if (fullPath.endsWith('.svg')) {
             const fileName = fullPath.split('/').pop();
@@ -91,40 +139,63 @@ function extractSVGs(content) {
         }
     });
 
-    return svgs;
+    webpMatches.forEach(match => {
+        const fullPath = match[1];
+        if (fullPath.endsWith('.webp')) {
+            const fileName = fullPath.split('/').pop();
+            webps.add(fileName);
+        }
+    });
+
+    return { svgs, webps };
 }
 
 function updateDiffSummary() {
-    if (!comparisonMode || file1SVGs.size === 0 || file2SVGs.size === 0) return;
+    if (!comparisonMode) return;
 
-    const added = new Set([...file2SVGs].filter(x => !file1SVGs.has(x)));
-    const removed = new Set([...file1SVGs].filter(x => !file2SVGs.has(x)));
-    const unchanged = new Set([...file1SVGs].filter(x => file2SVGs.has(x)));
+    const addedSVGs = new Set([...file2SVGs].filter(x => !file1SVGs.has(x)));
+    const removedSVGs = new Set([...file1SVGs].filter(x => !file2SVGs.has(x)));
+    const unchangedSVGs = new Set([...file1SVGs].filter(x => file2SVGs.has(x)));
+
+    const addedWebPs = new Set([...file2WebPs].filter(x => !file1WebPs.has(x)));
+    const removedWebPs = new Set([...file1WebPs].filter(x => !file2WebPs.has(x)));
+    const unchangedWebPs = new Set([...file1WebPs].filter(x => file2WebPs.has(x)));
 
     diffSummary.innerHTML = `
-        <div class="diff-stat unchanged-stat">Unchanged: ${unchanged.size}</div>
-        <div class="diff-stat added-stat">Added: ${added.size}</div>
-        <div class="diff-stat removed-stat">Removed: ${removed.size}</div>
+        <div class="file-type-summary">
+            <h3>SVG Files:</h3>
+            <div class="diff-stat unchanged-stat">Unchanged: ${unchangedSVGs.size}</div>
+            <div class="diff-stat added-stat">Added: ${addedSVGs.size}</div>
+            <div class="diff-stat removed-stat">Removed: ${removedSVGs.size}</div>
+        </div>
+        <div class="file-type-summary">
+            <h3>WebP Files:</h3>
+            <div class="diff-stat unchanged-stat">Unchanged: ${unchangedWebPs.size}</div>
+            <div class="diff-stat added-stat">Added: ${addedWebPs.size}</div>
+            <div class="diff-stat removed-stat">Removed: ${removedWebPs.size}</div>
+        </div>
     `;
 }
 
-function createGallery(svgs, galleryId, otherSvgs) {
-    const gallery = document.getElementById(galleryId);
-    const header = gallery.querySelector('.gallery-header');
-    gallery.innerHTML = '';
-    gallery.appendChild(header);
+function createImageSection(container, images, otherImages, galleryId, fileType) {
+    const section = document.createElement('div');
+    section.className = `section ${fileType.toLowerCase()}-section`;
 
-    const count = gallery.querySelector('span');
-    count.textContent = `${svgs.size} SVGs`;
+    const header = document.createElement('h3');
+    header.textContent = `${fileType} Files (${images.size})`;
+    section.appendChild(header);
 
-    svgs.forEach(fileName => {
+    const grid = document.createElement('div');
+    grid.className = 'image-grid';
+
+    images.forEach(fileName => {
         const fullPath = `https://tankionline.com/play/static/images/${fileName}`;
         const container = document.createElement('div');
         container.className = 'image-container';
 
         let isChanged = false;
-        if (comparisonMode && otherSvgs) {
-            if (!otherSvgs.has(fileName)) {
+        if (comparisonMode && otherImages) {
+            if (!otherImages.has(fileName)) {
                 container.classList.add(galleryId === 'gallery2' ? 'added' : 'removed');
                 isChanged = true;
             }
@@ -150,7 +221,40 @@ function createGallery(svgs, galleryId, otherSvgs) {
 
         container.appendChild(img);
         container.appendChild(name);
-        gallery.appendChild(container);
+        grid.appendChild(container);
+    });
+
+    section.appendChild(grid);
+    container.appendChild(section);
+}
+
+function createGallery(galleryId, svgs, webps, otherSvgs, otherWebps) {
+    const gallery = document.getElementById(galleryId);
+    const header = gallery.querySelector('.gallery-header');
+    gallery.innerHTML = '';
+    gallery.appendChild(header);
+
+    const count = gallery.querySelector('span');
+    count.textContent = `${svgs.size + webps.size} Files`;
+
+    if (svgs.size > 0) {
+        createImageSection(gallery, svgs, otherSvgs, galleryId, 'SVG');
+    }
+
+    if (webps.size > 0) {
+        createImageSection(gallery, webps, otherWebps, galleryId, 'WebP');
+    }
+
+    // Apply current view type
+    const svgSections = gallery.querySelectorAll('.svg-section');
+    const webpSections = gallery.querySelectorAll('.webp-section');
+
+    svgSections.forEach(section => {
+        section.classList.toggle('hidden-type', currentViewType === 'webp');
+    });
+
+    webpSections.forEach(section => {
+        section.classList.toggle('hidden-type', currentViewType === 'svg');
     });
 }
 
@@ -162,24 +266,26 @@ function processFile(file, statusElement) {
 
     reader.onload = function(e) {
         const content = e.target.result;
-        const svgs = extractSVGs(content);
+        const { svgs, webps } = extractImages(content);
 
         if (statusElement.id === 'status1') {
             file1SVGs = svgs;
-            createGallery(svgs, 'gallery1', file2SVGs);
+            file1WebPs = webps;
+            createGallery('gallery1', svgs, webps, file2SVGs, file2WebPs);
         } else {
             file2SVGs = svgs;
-            createGallery(svgs, 'gallery2', file1SVGs);
+            file2WebPs = webps;
+            createGallery('gallery2', svgs, webps, file1SVGs, file1WebPs);
         }
 
-        statusElement.textContent = `Processed ${svgs.size} SVG files`;
+        statusElement.textContent = `Processed ${svgs.size} SVGs and ${webps.size} WebPs`;
 
         if (comparisonMode) {
             updateDiffSummary();
-            if (statusElement.id === 'status1' && file2SVGs.size > 0) {
-                createGallery(file2SVGs, 'gallery2', file1SVGs);
-            } else if (statusElement.id === 'status2' && file1SVGs.size > 0) {
-                createGallery(file1SVGs, 'gallery1', file2SVGs);
+            if (statusElement.id === 'status1' && (file2SVGs.size > 0 || file2WebPs.size > 0)) {
+                createGallery('gallery2', file2SVGs, file2WebPs, file1SVGs, file1WebPs);
+            } else if (statusElement.id === 'status2' && (file1SVGs.size > 0 || file1WebPs.size > 0)) {
+                createGallery('gallery1', file1SVGs, file1WebPs, file2SVGs, file2WebPs);
             }
         }
     };
