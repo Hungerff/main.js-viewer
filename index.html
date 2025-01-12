@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Image Gallery Viewer</title>
+    <title>Media Gallery Viewer</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="header">
-    <h1>Image Gallery Viewer</h1>
+    <h1>Media Gallery Viewer</h1>
     <button id="toggleCompare" class="compare-button">Enable Comparison Mode</button>
     <button id="toggleChanged" class="compare-button hidden">Only Show Changes</button>
     <div class="type-toggle">
         <button id="toggleSVG" class="type-button active">SVG</button>
         <button id="toggleWebP" class="type-button">WebP</button>
+        <button id="togglePNG" class="type-button">PNG</button>
+        <button id="toggleMP3" class="type-button">MP3</button>
+        <button id="toggleMP4" class="type-button">MP4</button>
         <button id="toggleAll" class="type-button">All</button>
     </div>
 </div>
@@ -51,6 +54,18 @@
                 <h3>WebP Files</h3>
                 <div class="image-grid"></div>
             </div>
+            <div class="section png-section">
+                <h3>PNG Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section mp3-section">
+                <h3>MP3 Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section mp4-section">
+                <h3>MP4 Files</h3>
+                <div class="image-grid"></div>
+            </div>
         </div>
     </div>
     <div id="gallery2" class="gallery secondary hidden">
@@ -65,6 +80,18 @@
             </div>
             <div class="section webp-section">
                 <h3>WebP Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section png-section">
+                <h3>PNG Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section mp3-section">
+                <h3>MP3 Files</h3>
+                <div class="image-grid"></div>
+            </div>
+            <div class="section mp4-section">
+                <h3>MP4 Files</h3>
                 <div class="image-grid"></div>
             </div>
         </div>
