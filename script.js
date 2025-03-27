@@ -10,9 +10,9 @@ let file1MP4s = new Set();
 let file2MP4s = new Set();
 let comparisonMode = false;
 let showChangedOnly = false;
-let currentViewType = 'all'; // Can be 'all', 'svg', 'webp', 'png', 'mp3', 'mp4'
+let currentViewType = 'all'; 
+let selectedBaseUrl = 'https://tankionline.com/play/static/'; 
 
-// Initialize UI elements
 const toggleButton = document.getElementById('toggleCompare');
 const toggleChangedButton = document.getElementById('toggleChanged');
 const toggleSVG = document.getElementById('toggleSVG');
@@ -27,7 +27,38 @@ const secondaryFileInput = document.getElementById('dropZone2');
 const secondaryGallery = document.getElementById('gallery2');
 const diffSummary = document.getElementById('diffSummary');
 
-// Toggle comparison mode
+const baseUrlSelector = document.createElement('select');
+baseUrlSelector.id = 'baseUrlSelector';
+const urlOptions = [
+    { value: 'https://tankionline.com/play/static/', label: 'Default (tankionline.com)' },
+    { value: 'https://public-deploy1.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 1' },
+    { value: 'https://public-deploy2.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 2' },
+    { value: 'https://public-deploy3.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 3' },
+    { value: 'https://public-deploy4.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 4' },
+    { value: 'https://public-deploy5.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 5' },
+    { value: 'https://public-deploy6.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 6' },
+    { value: 'https://public-deploy7.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 7' }
+];
+urlOptions.forEach(option => {
+    const opt = document.createElement('option');
+    opt.value = option.value;
+    opt.textContent = option.label;
+    baseUrlSelector.appendChild(opt);
+});
+fileInputsContainer.prepend(baseUrlSelector);
+
+baseUrlSelector.addEventListener('change', () => {
+    selectedBaseUrl = baseUrlSelector.value;
+    if (hasFiles(file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s)) {
+        createGallery('gallery1', file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s,
+                     file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
+    }
+    if (hasFiles(file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s)) {
+        createGallery('gallery2', file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s,
+                     file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s);
+    }
+});
+
 toggleButton.addEventListener('click', () => {
     comparisonMode = !comparisonMode;
     toggleButton.textContent = comparisonMode ? 'Disable Comparison Mode' : 'Enable Comparison Mode';
@@ -39,12 +70,10 @@ toggleButton.addEventListener('click', () => {
     toggleChangedButton.classList.toggle('hidden', !comparisonMode);
 });
 
-// Toggle show changed only
 toggleChangedButton.addEventListener('click', () => {
     showChangedOnly = !showChangedOnly;
     toggleChangedButton.textContent = showChangedOnly ? 'Show All' : 'Only Show Changes';
 
-    // Refresh galleries to apply the filter
     if (hasFiles(file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s)) {
         createGallery('gallery1', file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s,
                      file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
@@ -55,7 +84,6 @@ toggleChangedButton.addEventListener('click', () => {
     }
 });
 
-// Type toggle handlers
 toggleSVG.addEventListener('click', () => setViewType('svg'));
 toggleWebP.addEventListener('click', () => setViewType('webp'));
 togglePNG.addEventListener('click', () => setViewType('png'));
@@ -70,7 +98,6 @@ function hasFiles(...sets) {
 function setViewType(type) {
     currentViewType = type;
 
-    // Update button states
     [toggleSVG, toggleWebP, togglePNG, toggleMP3, toggleMP4, toggleAll].forEach(button => {
         button.classList.remove('active');
     });
@@ -86,7 +113,6 @@ function setViewType(type) {
 
     if (button) button.classList.add('active');
 
-    // Update visibility of sections
     const sections = {
         'svg': document.querySelectorAll('.svg-section'),
         'webp': document.querySelectorAll('.webp-section'),
@@ -148,7 +174,7 @@ function extractImages(content) {
         webp: /['"](.*?\.webp)['"]/g,
         png: /['"](.*?\.png)['"]/g,
         mp3: /['"](.*?\.mp3)['"]/g,
-        mp4: /['"](.*?\.(mp4|webm))['"]/g // Combine MP4 and WebM
+        mp4: /['"](.*?\.(mp4|webm))['"]/g
     };
 
     const results = {
@@ -156,7 +182,7 @@ function extractImages(content) {
         webps: new Set(),
         pngs: new Set(),
         mp3s: new Set(),
-        mp4s: new Set() // Store both MP4 and WebM here
+        mp4s: new Set()
     };
 
     Object.entries(patterns).forEach(([type, regex]) => {
@@ -173,21 +199,23 @@ function extractImages(content) {
     return results;
 }
 
-
 function createMediaPreview(fileName, type) {
-    let fullPath = `https://tankionline.com/play/static/images/${fileName}`;
+    let fullPath = `${selectedBaseUrl}images/${fileName}`; 
 
     if (type === 'mp4' && fileName.endsWith('.webm')) {
-        fullPath = `https://tankionline.com/play/static/videos/${fileName}`;
+        fullPath = `${selectedBaseUrl}videos/${fileName}`;
+    } else if (type === 'mp4') {
+        fullPath = `${selectedBaseUrl}videos/${fileName}`;
+    } else if (type === 'mp3') {
+        fullPath = `${selectedBaseUrl}sound/${fileName}`;
     }
 
     if (type === 'mp3') {
-        fullPath = `https://tankionline.com/play/static/sound/${fileName}`; // Updated path for MP3
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.src = fullPath;
         return audio;
-    } else if (type === 'mp4') { // Handles both MP4 and WebM
+    } else if (type === 'mp4') { 
         const video = document.createElement('video');
         video.controls = true;
         video.src = fullPath;
@@ -200,7 +228,6 @@ function createMediaPreview(fileName, type) {
         return img;
     }
 }
-
 
 function createImageSection(container, files, otherFiles, galleryId, fileType) {
     const section = document.createElement('div');
@@ -225,10 +252,9 @@ function createImageSection(container, files, otherFiles, galleryId, fileType) {
             }
         }
 
-        // Debug visibility logic
         if (showChangedOnly && comparisonMode && !isChanged) {
             console.log(`Hiding unchanged file: ${fileName}`);
-            return; // Skip unchanged files
+            return; 
         }
 
         const mediaElement = createMediaPreview(fileName, fileType.toLowerCase());
@@ -250,7 +276,6 @@ function createImageSection(container, files, otherFiles, galleryId, fileType) {
     container.appendChild(section);
 }
 
-
 function createGallery(galleryId, svgs, webps, pngs, mp3s, mp4s, otherSvgs, otherWebps, otherPngs, otherMp3s, otherMp4s) {
     const gallery = document.getElementById(galleryId);
     const header = gallery.querySelector('.gallery-header');
@@ -266,7 +291,7 @@ function createGallery(galleryId, svgs, webps, pngs, mp3s, mp4s, otherSvgs, othe
         { files: webps, otherFiles: otherWebps, type: 'WebP' },
         { files: pngs, otherFiles: otherPngs, type: 'PNG' },
         { files: mp3s, otherFiles: otherMp3s, type: 'MP3' },
-        { files: mp4s, otherFiles: otherMp4s, type: 'MP4' } // Includes WebM
+        { files: mp4s, otherFiles: otherMp4s, type: 'MP4' }
     ];
 
     sections.forEach(({ files, otherFiles, type }) => {
@@ -276,11 +301,8 @@ function createGallery(galleryId, svgs, webps, pngs, mp3s, mp4s, otherSvgs, othe
         }
     });
 
-    // Apply current view type
     setViewType(currentViewType);
 }
-
-
 
 function processFile(file, statusElement) {
     if (!file) return;
