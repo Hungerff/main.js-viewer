@@ -1,353 +1,320 @@
-let file1SVGs = new Set();
-let file2SVGs = new Set();
-let file1WebPs = new Set();
-let file2WebPs = new Set();
-let file1PNGs = new Set();
-let file2PNGs = new Set();
-let file1MP3s = new Set();
-let file2MP3s = new Set();
-let file1MP4s = new Set();
-let file2MP4s = new Set();
-let comparisonMode = false;
-let showChangedOnly = false;
-let currentViewType = 'all'; 
-let selectedBaseUrl = 'https://tankionline.com/play/static/'; 
+// Centralized state management
+const state = {
+  files: {
+    file1: { svgs: new Set(), webps: new Set(), pngs: new Set(), mp3s: new Set(), mp4s: new Set() },
+    file2: { svgs: new Set(), webps: new Set(), pngs: new Set(), mp3s: new Set(), mp4s: new Set() }
+  },
+  comparisonMode: false,
+  showChangedOnly: false,
+  currentViewType: 'all', // 'all', 'svg', 'webp', 'png', 'mp3', 'mp4'
+  selectedBaseUrl: 'https://tankionline.com/play/static/'
+};
 
-const toggleButton = document.getElementById('toggleCompare');
-const toggleChangedButton = document.getElementById('toggleChanged');
-const toggleSVG = document.getElementById('toggleSVG');
-const toggleWebP = document.getElementById('toggleWebP');
-const togglePNG = document.getElementById('togglePNG');
-const toggleMP3 = document.getElementById('toggleMP3');
-const toggleMP4 = document.getElementById('toggleMP4');
-const toggleAll = document.getElementById('toggleAll');
-const fileInputsContainer = document.querySelector('.file-inputs');
-const galleriesContainer = document.querySelector('.galleries');
-const secondaryFileInput = document.getElementById('dropZone2');
-const secondaryGallery = document.getElementById('gallery2');
-const diffSummary = document.getElementById('diffSummary');
+// UI elements
+const elements = {
+  toggleButton: document.getElementById('toggleCompare'),
+  toggleChangedButton: document.getElementById('toggleChanged'),
+  toggles: {
+    svg: document.getElementById('toggleSVG'),
+    webp: document.getElementById('toggleWebP'),
+    png: document.getElementById('togglePNG'),
+    mp3: document.getElementById('toggleMP3'),
+    mp4: document.getElementById('toggleMP4'),
+    all: document.getElementById('toggleAll')
+  },
+  fileInputsContainer: document.querySelector('.file-inputs'),
+  galleriesContainer: document.querySelector('.galleries'),
+  secondaryFileInput: document.getElementById('dropZone2'),
+  secondaryGallery: document.getElementById('gallery2'),
+  diffSummary: document.getElementById('diffSummary')
+};
 
-const baseUrlSelector = document.createElement('select');
-baseUrlSelector.id = 'baseUrlSelector';
+// Base URL options
 const urlOptions = [
-    { value: 'https://tankionline.com/play/static/', label: 'Default (tankionline.com)' },
-    { value: 'https://public-deploy1.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 1' },
-    { value: 'https://public-deploy2.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 2' },
-    { value: 'https://public-deploy3.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 3' },
-    { value: 'https://public-deploy4.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 4' },
-    { value: 'https://public-deploy5.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 5' },
-    { value: 'https://public-deploy6.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 6' },
-    { value: 'https://public-deploy7.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 7' }
+  { value: 'https://tankionline.com/play/static/', label: 'Default (tankionline.com)' },
+  { value: 'https://public-deploy1.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 1' },
+  { value: 'https://public-deploy2.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 2' },
+  { value: 'https://public-deploy3.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 3' },
+  { value: 'https://public-deploy4.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 4' },
+  { value: 'https://public-deploy5.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 5' },
+  { value: 'https://public-deploy6.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 6' },
+  { value: 'https://public-deploy7.test-eu.tankionline.com/browser-public/static/', label: 'Deploy 7' }
 ];
-urlOptions.forEach(option => {
-    const opt = document.createElement('option');
-    opt.value = option.value;
-    opt.textContent = option.label;
-    baseUrlSelector.appendChild(opt);
-});
-fileInputsContainer.prepend(baseUrlSelector);
 
+// Initialize base URL selector
+const baseUrlSelector = createBaseUrlSelector();
+elements.fileInputsContainer.prepend(baseUrlSelector);
+
+// Event listeners
 baseUrlSelector.addEventListener('change', () => {
-    selectedBaseUrl = baseUrlSelector.value;
-    if (hasFiles(file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s)) {
-        createGallery('gallery1', file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s,
-                     file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
-    }
-    if (hasFiles(file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s)) {
-        createGallery('gallery2', file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s,
-                     file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s);
-    }
+  state.selectedBaseUrl = baseUrlSelector.value;
+  updateGalleries();
 });
 
-toggleButton.addEventListener('click', () => {
-    comparisonMode = !comparisonMode;
-    toggleButton.textContent = comparisonMode ? 'Disable Comparison Mode' : 'Enable Comparison Mode';
-    fileInputsContainer.classList.toggle('comparison-mode', comparisonMode);
-    galleriesContainer.classList.toggle('comparison-mode', comparisonMode);
-    secondaryFileInput.classList.toggle('hidden', !comparisonMode);
-    secondaryGallery.classList.toggle('hidden', !comparisonMode);
-    diffSummary.classList.toggle('hidden', !comparisonMode);
-    toggleChangedButton.classList.toggle('hidden', !comparisonMode);
+elements.toggleButton.addEventListener('click', () => {
+  state.comparisonMode = !state.comparisonMode;
+  elements.toggleButton.textContent = state.comparisonMode ? 'Disable Comparison Mode' : 'Enable Comparison Mode';
+  updateUIForComparisonMode();
+  updateGalleries();
 });
 
-toggleChangedButton.addEventListener('click', () => {
-    showChangedOnly = !showChangedOnly;
-    toggleChangedButton.textContent = showChangedOnly ? 'Show All' : 'Only Show Changes';
-
-    if (hasFiles(file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s)) {
-        createGallery('gallery1', file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s,
-                     file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
-    }
-    if (hasFiles(file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s)) {
-        createGallery('gallery2', file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s,
-                     file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s);
-    }
+elements.toggleChangedButton.addEventListener('click', () => {
+  state.showChangedOnly = !state.showChangedOnly;
+  elements.toggleChangedButton.textContent = state.showChangedOnly ? 'Show All' : 'Only Show Changes';
+  updateGalleries();
 });
 
-toggleSVG.addEventListener('click', () => setViewType('svg'));
-toggleWebP.addEventListener('click', () => setViewType('webp'));
-togglePNG.addEventListener('click', () => setViewType('png'));
-toggleMP3.addEventListener('click', () => setViewType('mp3'));
-toggleMP4.addEventListener('click', () => setViewType('mp4'));
-toggleAll.addEventListener('click', () => setViewType('all'));
+Object.entries(elements.toggles).forEach(([type, button]) => {
+  button.addEventListener('click', () => setViewType(type));
+});
 
-function hasFiles(...sets) {
-    return sets.some(set => set.size > 0);
+// Utility functions
+function createBaseUrlSelector() {
+  const select = document.createElement('select');
+  select.id = 'baseUrlSelector';
+  urlOptions.forEach(({ value, label }) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function hasFiles(fileSet) {
+  return Object.values(fileSet).some(set => set.size > 0);
 }
 
 function setViewType(type) {
-    currentViewType = type;
+  state.currentViewType = type;
+  Object.values(elements.toggles).forEach(button => button.classList.remove('active'));
+  elements.toggles[type].classList.add('active');
 
-    [toggleSVG, toggleWebP, togglePNG, toggleMP3, toggleMP4, toggleAll].forEach(button => {
-        button.classList.remove('active');
-    });
-
-    const button = {
-        'svg': toggleSVG,
-        'webp': toggleWebP,
-        'png': togglePNG,
-        'mp3': toggleMP3,
-        'mp4': toggleMP4,
-        'all': toggleAll
-    }[type];
-
-    if (button) button.classList.add('active');
-
-    const sections = {
-        'svg': document.querySelectorAll('.svg-section'),
-        'webp': document.querySelectorAll('.webp-section'),
-        'png': document.querySelectorAll('.png-section'),
-        'mp3': document.querySelectorAll('.mp3-section'),
-        'mp4': document.querySelectorAll('.mp4-section')
-    };
-
-    Object.entries(sections).forEach(([sectionType, elements]) => {
-        elements.forEach(section => {
-            section.classList.toggle('hidden-type', type !== 'all' && type !== sectionType);
-        });
-    });
-}
-
-function setupDropZone(dropZoneId, fileInputId, statusId, processFile) {
-    const dropZone = document.getElementById(dropZoneId);
-    const fileInput = document.getElementById(fileInputId);
-    const status = document.getElementById(statusId);
-
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => highlight(dropZone), false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => unhighlight(dropZone), false);
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        const file = e.dataTransfer.files[0];
-        processFile(file, status);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        processFile(e.target.files[0], status);
-    });
+  const sections = document.querySelectorAll('.section');
+  sections.forEach(section => {
+    const sectionType = section.className.match(/(svg|webp|png|mp3|mp4)-section/)[1];
+    section.classList.toggle('hidden-type', type !== 'all' && type !== sectionType);
+  });
 }
 
 function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
+  e.preventDefault();
+  e.stopPropagation();
 }
 
 function highlight(element) {
-    element.classList.add('drop-zone');
+  element.classList.add('drop-zone');
 }
 
 function unhighlight(element) {
-    element.classList.remove('drop-zone');
+  element.classList.remove('drop-zone');
 }
 
-function extractImages(content) {
-    const patterns = {
-        svg: /['"](.*?\.svg)['"]/g,
-        webp: /['"](.*?\.webp)['"]/g,
-        png: /['"](.*?\.png)['"]/g,
-        mp3: /['"](.*?\.mp3)['"]/g,
-        mp4: /['"](.*?\.(mp4|webm))['"]/g
-    };
+// File processing
+function setupDropZone({ dropZoneId, fileInputId, statusId, galleryId }) {
+  const dropZone = document.getElementById(dropZoneId);
+  const fileInput = document.getElementById(fileInputId);
+  const status = document.getElementById(statusId);
 
-    const results = {
-        svgs: new Set(),
-        webps: new Set(),
-        pngs: new Set(),
-        mp3s: new Set(),
-        mp4s: new Set()
-    };
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+    dropZone.addEventListener(event, preventDefaults, false);
+  });
 
-    Object.entries(patterns).forEach(([type, regex]) => {
-        const matches = Array.from(content.matchAll(regex));
-        matches.forEach(match => {
-            const fullPath = match[1];
-            if (fullPath.endsWith(`.${type}`) || (type === 'mp4' && /\.(mp4|webm)$/.test(fullPath))) {
-                const fileName = fullPath.split('/').pop();
-                results[`${type}s`].add(fileName);
-            }
-        });
-    });
+  ['dragenter', 'dragover'].forEach(event => {
+    dropZone.addEventListener(event, () => highlight(dropZone), false);
+  });
 
-    return results;
+  ['dragleave', 'drop'].forEach(event => {
+    dropZone.addEventListener(event, () => unhighlight(dropZone), false);
+  });
+
+  dropZone.addEventListener('drop', e => processFile(e.dataTransfer.files[0], status, galleryId));
+  fileInput.addEventListener('change', e => processFile(e.target.files[0], status, galleryId));
+}
+
+function processFile(file, statusElement, galleryId) {
+  if (!file) return;
+
+  statusElement.textContent = 'Processing file...';
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try {
+      const content = e.target.result;
+      const extracted = extractMedia(content);
+      const target = galleryId === 'gallery1' ? 'file1' : 'file2';
+      Object.assign(state.files[target], extracted);
+
+      updateGalleries();
+      statusElement.textContent = `Processed ${extracted.svgs.size} SVGs, ${extracted.webps.size} WebPs, ${extracted.pngs.size} PNGs, ${extracted.mp3s.size} MP3s, ${extracted.mp4s.size} MP4s`;
+      if (state.comparisonMode) updateDiffSummary();
+    } catch (error) {
+      statusElement.textContent = `Error processing file: ${error.message}`;
+      console.error(error);
+    }
+  };
+
+  reader.onerror = () => {
+    statusElement.textContent = 'Error reading file';
+  };
+
+  reader.readAsText(file);
+}
+
+function extractMedia(content) {
+  const patterns = {
+    svg: /['"]([^'"]*\.svg)['"]/g,
+    webp: /['"]([^'"]*\.webp)['"]/g,
+    png: /['"]([^'"]*\.png)['"]/g,
+    mp3: /['"]([^'"]*\.mp3)['"]/g,
+    mp4: /['"]([^'"]*\.(mp4|webm))['"]/g
+  };
+
+  const results = { svgs: new Set(), webps: new Set(), pngs: new Set(), mp3s: new Set(), mp4s: new Set() };
+  Object.entries(patterns).forEach(([type, regex]) => {
+    const matches = [...content.matchAll(regex)];
+    matches.forEach(match => results[`${type}s`].add(match[1].split('/').pop()));
+  });
+  return results;
+}
+
+// Gallery rendering
+function getMimeType(fileName, type) {
+  if (type === 'mp3') return 'audio/mpeg';
+  if (type === 'mp4') {
+    if (fileName.endsWith('.mp4')) return 'video/mp4';
+    if (fileName.endsWith('.webm')) return 'video/webm';
+  }
+  return null;
 }
 
 function createMediaPreview(fileName, type) {
-    let fullPath = `${selectedBaseUrl}images/${fileName}`; 
+  const basePaths = {
+    svg: 'images',
+    webp: 'images',
+    png: 'images',
+    mp3: 'sound',
+    mp4: 'videos'
+  };
+  const fullPath = `${state.selectedBaseUrl}${basePaths[type]}/${fileName}`;
 
-    if (type === 'mp4' && fileName.endsWith('.webm')) {
-        fullPath = `${selectedBaseUrl}videos/${fileName}`;
-    } else if (type === 'mp4') {
-        fullPath = `${selectedBaseUrl}videos/${fileName}`;
-    } else if (type === 'mp3') {
-        fullPath = `${selectedBaseUrl}sound/${fileName}`;
+  let element;
+  if (type === 'mp3' || type === 'mp4') {
+    element = document.createElement(type === 'mp3' ? 'audio' : 'video');
+    element.controls = true;
+    const source = document.createElement('source');
+    source.src = fullPath;
+    source.type = getMimeType(fileName, type);
+    element.appendChild(source);
+    element.appendChild(document.createTextNode(`Your browser does not support the ${type === 'mp3' ? 'audio' : 'video'} tag.`));
+  } else {
+    element = document.createElement('img');
+    element.src = fullPath;
+    element.alt = fileName;
+    element.loading = 'lazy';
+  }
+
+  element.setAttribute('aria-label', `${type.toUpperCase()} file: ${fileName}`);
+  element.onerror = () => {
+    console.error(`Failed to load ${fullPath}`);
+    element.parentElement.remove();
+  };
+  return element;
+}
+
+function createSection(galleryId, type, files, otherFiles) {
+  const section = document.createElement('div');
+  section.className = `section ${type.toLowerCase()}-section`;
+
+  const header = document.createElement('h3');
+  header.textContent = `${type} Files (${files.size})`;
+  section.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'image-grid';
+
+  files.forEach(fileName => {
+    const container = document.createElement('div');
+    container.className = 'image-container';
+
+    if (state.comparisonMode && otherFiles) {
+      const isChanged = !otherFiles.has(fileName);
+      if (isChanged) container.classList.add(galleryId === 'gallery2' ? 'added' : 'removed');
+      if (state.showChangedOnly && !isChanged) return;
     }
 
-    if (type === 'mp3') {
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.src = fullPath;
-        return audio;
-    } else if (type === 'mp4') { 
-        const video = document.createElement('video');
-        video.controls = true;
-        video.src = fullPath;
-        return video;
-    } else {
-        const img = document.createElement('img');
-        img.src = fullPath;
-        img.alt = fileName;
-        img.loading = 'lazy';
-        return img;
-    }
+    const media = createMediaPreview(fileName, type.toLowerCase());
+    const name = document.createElement('div');
+    name.className = 'filename';
+    name.textContent = fileName;
+
+    container.appendChild(media);
+    container.appendChild(name);
+    grid.appendChild(container);
+  });
+
+  section.appendChild(grid);
+  return section;
 }
 
-function createImageSection(container, files, otherFiles, galleryId, fileType) {
-    const section = document.createElement('div');
-    section.className = `section ${fileType.toLowerCase()}-section`;
+function createGallery(galleryId) {
+  const gallery = document.getElementById(galleryId);
+  const header = gallery.querySelector('.gallery-header');
+  gallery.innerHTML = '';
+  gallery.appendChild(header);
 
-    const header = document.createElement('h3');
-    header.textContent = `${fileType} Files (${files.size})`;
-    section.appendChild(header);
+  const files = state.files[galleryId === 'gallery1' ? 'file1' : 'file2'];
+  const otherFiles = state.files[galleryId === 'gallery1' ? 'file2' : 'file1'];
+  const totalFiles = Object.values(files).reduce((sum, set) => sum + set.size, 0);
+  gallery.querySelector('span').textContent = `${totalFiles} Files`;
 
-    const grid = document.createElement('div');
-    grid.className = 'image-grid';
+  const sections = [
+    { type: 'SVG', files: files.svgs, otherFiles: otherFiles.svgs },
+    { type: 'WebP', files: files.webps, otherFiles: otherFiles.webps },
+    { type: 'PNG', files: files.pngs, otherFiles: otherFiles.pngs },
+    { type: 'MP3', files: files.mp3s, otherFiles: otherFiles.mp3s },
+    { type: 'MP4', files: files.mp4s, otherFiles: otherFiles.mp4s }
+  ];
 
-    files.forEach(fileName => {
-        const container = document.createElement('div');
-        container.className = 'image-container';
+  sections.forEach(({ type, files, otherFiles }) => {
+    if (files.size > 0) gallery.appendChild(createSection(galleryId, type, files, otherFiles));
+  });
 
-        let isChanged = false;
-        if (comparisonMode && otherFiles) {
-            if (!otherFiles.has(fileName)) {
-                container.classList.add(galleryId === 'gallery2' ? 'added' : 'removed');
-                isChanged = true;
-            }
-        }
-
-        if (showChangedOnly && comparisonMode && !isChanged) {
-            console.log(`Hiding unchanged file: ${fileName}`);
-            return; 
-        }
-
-        const mediaElement = createMediaPreview(fileName, fileType.toLowerCase());
-        mediaElement.onerror = () => {
-            console.warn(`Error loading media: ${fileName}`);
-            container.style.display = 'none';
-        };
-
-        const name = document.createElement('div');
-        name.className = 'filename';
-        name.textContent = fileName;
-
-        container.appendChild(mediaElement);
-        container.appendChild(name);
-        grid.appendChild(container);
-    });
-
-    section.appendChild(grid);
-    container.appendChild(section);
+  setViewType(state.currentViewType);
 }
 
-function createGallery(galleryId, svgs, webps, pngs, mp3s, mp4s, otherSvgs, otherWebps, otherPngs, otherMp3s, otherMp4s) {
-    const gallery = document.getElementById(galleryId);
-    const header = gallery.querySelector('.gallery-header');
-    gallery.innerHTML = '';
-    gallery.appendChild(header);
-
-    const totalFiles = svgs.size + webps.size + pngs.size + mp3s.size + mp4s.size;
-    const count = gallery.querySelector('span');
-    count.textContent = `${totalFiles} Files`;
-
-    const sections = [
-        { files: svgs, otherFiles: otherSvgs, type: 'SVG' },
-        { files: webps, otherFiles: otherWebps, type: 'WebP' },
-        { files: pngs, otherFiles: otherPngs, type: 'PNG' },
-        { files: mp3s, otherFiles: otherMp3s, type: 'MP3' },
-        { files: mp4s, otherFiles: otherMp4s, type: 'MP4' }
-    ];
-
-    sections.forEach(({ files, otherFiles, type }) => {
-        if (files.size > 0) {
-            console.log(`Adding ${files.size} ${type} files to ${galleryId}`);
-            createImageSection(gallery, files, otherFiles, galleryId, type);
-        }
-    });
-
-    setViewType(currentViewType);
+function updateGalleries() {
+  if (hasFiles(state.files.file1)) createGallery('gallery1');
+  if (hasFiles(state.files.file2)) createGallery('gallery2');
 }
 
-function processFile(file, statusElement) {
-    if (!file) return;
-
-    statusElement.textContent = 'Processing file...';
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-        const content = e.target.result;
-        const { svgs, webps, pngs, mp3s, mp4s } = extractImages(content);
-
-        if (statusElement.id === 'status1') {
-            file1SVGs = svgs;
-            file1WebPs = webps;
-            file1PNGs = pngs;
-            file1MP3s = mp3s;
-            file1MP4s = mp4s;
-            createGallery('gallery1', svgs, webps, pngs, mp3s, mp4s,
-                         file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
-        } else {
-            file2SVGs = svgs;
-            file2WebPs = webps;
-            file2PNGs = pngs;
-            file2MP3s = mp3s;
-            file2MP4s = mp4s;
-            createGallery('gallery2', svgs, webps, pngs, mp3s, mp4s,
-                         file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s);
-        }
-
-        statusElement.textContent = `Processed ${svgs.size} SVGs, ${webps.size} WebPs, ${pngs.size} PNGs, ${mp3s.size} MP3s, and ${mp4s.size} MP4s`;
-
-        if (comparisonMode) {
-            updateDiffSummary();
-            if (statusElement.id === 'status1' && hasFiles(file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s)) {
-                createGallery('gallery2', file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s,
-                             file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s);
-            } else if (statusElement.id === 'status2' && hasFiles(file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s)) {
-                createGallery('gallery1', file1SVGs, file1WebPs, file1PNGs, file1MP3s, file1MP4s,
-                             file2SVGs, file2WebPs, file2PNGs, file2MP3s, file2MP4s);
-            }
-        }
-    };
-
-    reader.readAsText(file);
+function updateUIForComparisonMode() {
+  const { comparisonMode } = state;
+  elements.fileInputsContainer.classList.toggle('comparison-mode', comparisonMode);
+  elements.galleriesContainer.classList.toggle('comparison-mode', comparisonMode);
+  elements.secondaryFileInput.classList.toggle('hidden', !comparisonMode);
+  elements.secondaryGallery.classList.toggle('hidden', !comparisonMode);
+  elements.diffSummary.classList.toggle('hidden', !comparisonMode);
+  elements.toggleChangedButton.classList.toggle('hidden', !comparisonMode);
 }
 
-setupDropZone('dropZone1', 'fileInput1', 'status1', processFile);
-setupDropZone('dropZone2', 'fileInput2', 'status2', processFile);
+function updateDiffSummary() {
+  const { file1, file2 } = state.files;
+  const diff = { added: {}, removed: {} };
+  const types = ['svgs', 'webps', 'pngs', 'mp3s', 'mp4s'];
+
+  types.forEach(type => {
+    diff.added[type] = [...file2[type]].filter(file => !file1[type].has(file)).length;
+    diff.removed[type] = [...file1[type]].filter(file => !file2[type].has(file)).length;
+  });
+
+  elements.diffSummary.innerHTML = `
+    <h3>Changes Summary</h3>
+    <p>Added: ${diff.added.svgs} SVGs, ${diff.added.webps} WebPs, ${diff.added.pngs} PNGs, ${diff.added.mp3s} MP3s, ${diff.added.mp4s} MP4s</p>
+    <p>Removed: ${diff.removed.svgs} SVGs, ${diff.removed.webps} WebPs, ${diff.removed.pngs} PNGs, ${diff.removed.mp3s} MP3s, ${diff.removed.mp4s} MP4s</p>
+  `;
+}
+
+// Initialize drop zones
+setupDropZone({ dropZoneId: 'dropZone1', fileInputId: 'fileInput1', statusId: 'status1', galleryId: 'gallery1' });
+setupDropZone({ dropZoneId: 'dropZone2', fileInputId: 'fileInput2', statusId: 'status2', galleryId: 'gallery2' });
